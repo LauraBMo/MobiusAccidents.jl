@@ -9,3 +9,7 @@
 
 # Renders write to /tmp, not the repo (except the committed showcase d5_accident.gif)
 /tmp/
+
+# Scrubbable video versions of the showcase — keep only the GIF in git
+*.webm
+*.mp4

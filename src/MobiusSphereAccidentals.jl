@@ -33,7 +33,7 @@ using MobiusSphereVisual      # render_mobius_animation
 
 export Accident,
        roots_of_unity, classify, accident_table, mobius_map,
-       accident_to_rigid, accident_markers, render_accident
+       accident_to_rigid, accident_overlay_sdl, render_accident
 
 include("Classify.jl")
 include("Render.jl")

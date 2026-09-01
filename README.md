@@ -56,9 +56,10 @@ the overlays, and forwards the rest to `render_mobius_animation`.
 ### Overlays
 
 The overlays trace the **action of ψ on the overlapping roots** — the `k` roots the
-accident carries to roots (only those, not all `d`). Each gets a distinct colour;
-its **source** is a large dot and its **image** `ψ(ω^k)` a smaller dot of the same
-colour just above. A fixed root reads as one dot; a moved root shows a large dot
-with a same-coloured small dot at its destination — the permutation made visible.
-All sit on the invariant circle `|z|=1`. Restyle via `marker_kwargs`
-(`source_size`, `image_size`, `colors`, …), forwarded to `accident_markers`.
+accident carries to roots (only those, not all `d`). Each gets a distinct colour.
+The **source** is a large flat disc; its **image** is a smaller disc of the same
+colour that is **clock-animated** — it starts on the source, rides the caustic (the
+moving rainbow/grid) through the whole motion, and lands at `ψ(ω^k)`. So you watch
+each root travel to its image along the deforming pattern. Discs are flat, so a
+smaller one stays visible on top of a larger one. Restyle via `marker_kwargs`
+(`source_r`, `image_r`, `colors`, …), forwarded to `accident_overlay_sdl`.

@@ -22,11 +22,6 @@ function accident_to_rigid(a::Accident)
             t = Float64.(real.(collect(T))), imag_error = imerr)
 end
 
-# Floor ↔ complex plane: the caustic realizes ψ on the floor (y = 0 in POV world),
-# with complex z = u + iv drawn at world <u, 0, v> and the unit circle at radius 1.
-# `lift` nudges markers just above the floor so they don't z-fight the plane.
-_floor_pos(z::Number; lift::Real = 0.02) = Float64[real(z), Float64(lift), imag(z)]
-
 # Evenly-spaced fully-saturated hue → RGB (the standard sat=1, val=1 hue ramp).
 function _hue_rgb(h::Real)
     r = clamp(abs(6h - 3) - 1, 0, 1)
@@ -35,46 +30,72 @@ function _hue_rgb(h::Real)
     return Float64[r, g, b]
 end
 
+# Inverse stereographic (sitting sphere, centre <0,1,0>, radius 1): the world cap
+# point whose shadow — cast from the rest pole <0,2,0> — lands on the floor at the
+# complex point z. This is the point on the shell that "carries" z's colour; letting
+# it ride the render's Motion and re-projecting from the moving pole tracks z's image
+# through the caustic. For |z|=1 this is <0.8·Re z, 0.4, 0.8·Im z>.
+function _cap_point(z::Number)
+    u, v = real(z), imag(z)
+    ρ2 = u * u + v * v
+    return (4u / (ρ2 + 4), 1 + (ρ2 - 4) / (ρ2 + 4), 4v / (ρ2 + 4))
+end
+
+_disc_sdl(x, ylo, yhi, r, c) = string(
+    "cylinder { <", x[1], ", ", ylo, ", ", x[2], ">, <", x[1], ", ", yhi, ", ", x[2], ">, ", r,
+    " pigment { color rgb <", c[1], ", ", c[2], ", ", c[3],
+    "> } finish { ambient 1 diffuse 0 } no_shadow }")
+
 """
-    accident_markers(a::Accident; source_size, image_size, source_lift, image_lift,
-                     colors) -> Vector{NamedTuple}
+    accident_overlay_sdl(a::Accident; source_r, image_r, source_h, image_h, colors)
+        -> String
 
-Floor markers for the `markers` keyword of `render_mobius_animation`, tracing the
-**action of ψ on the overlapping roots** — the `k` roots the accident carries to
-roots. Only those are marked (not all `d`). For each overlapping root:
+POV-Ray SDL (for a `:raw` marker) drawing the **action of ψ on the overlapping
+roots** — the `k` roots the accident carries to roots (only those, not all `d`).
+Each gets a distinct colour. For root `i`:
 
-- the **source** `ω^srcexp[i]` is a **large** dot;
-- its **image** `ω^tgtexp[i] = ψ(ω^srcexp[i])` is a **smaller** dot in the **same
-  colour**, lifted just above it.
+- a **large flat source disc** at `ω^srcexp[i]` — static;
+- a **smaller flat image disc**, same colour, that is **clock-animated**: it starts
+  on the source disc, rides the caustic (the moving rainbow/grid) through the whole
+  motion, and lands at the image `ψ(ω^srcexp[i]) = ω^tgtexp[i]`.
 
-So a fixed root reads as a single dot, and a moved root shows a large dot with a
-same-coloured small dot at its destination — the permutation made visible. Each of
-the `k` roots gets a distinct colour (evenly-spaced hues by default; override with
-`colors`, a length-`k` vector of RGB triples). All markers sit on the invariant
-circle `|z|=1` (radius 1 on the floor); they are static, and the caustic deforms
-under them from identity to `ψ`.
+The image disc's position is the shadow of root `i`'s cap point ([`_cap_point`](@ref))
+after the scene's `Motion`, projected from the moving projector light `PoleNow` — so
+it coincides with the caustic point of that root at every frame. Discs are flat (thin
+cylinders) so a smaller disc stays visible on top of a larger one. `source_h`/`image_h`
+are `(low, high)` disc heights (image sits above source); default colours are
+evenly-spaced hues (override with `colors`, a length-`k` vector of RGB triples).
 """
-function accident_markers(a::Accident;
-        source_size::Real = 0.09, image_size::Real = 0.05,
-        source_lift::Real = 0.02, image_lift::Real = 0.06,
+function accident_overlay_sdl(a::Accident;
+        source_r::Real = 0.11, image_r::Real = 0.06,
+        source_h = (0.008, 0.028), image_h = (0.032, 0.055),
         colors = nothing)
     Θ = roots_of_unity(a.d)
     k = a.k
     cols = colors === nothing ? [_hue_rgb((i - 1) / k) for i in 1:k] :
                                 [collect(Float64.(c)) for c in colors]
     length(cols) == k || throw(ArgumentError("colors must have length k=$k, got $(length(cols))"))
-    ms = NamedTuple[]
-    for i in 1:k       # large source dots first
-        p = Θ[a.srcexp[i] + 1]
-        push!(ms, (; kind = :dot, pos = _floor_pos(p; lift = source_lift),
-                     color = cols[i], size = Float64(source_size)))
+    io = IOBuffer()
+    println(io, "// --- accident overlay: source discs (static) + image discs (clock-animated) ---")
+    for i in 1:k                     # static large source discs
+        r = Θ[a.srcexp[i] + 1]
+        println(io, _disc_sdl((real(r), imag(r)), source_h[1], source_h[2], source_r, cols[i]))
     end
-    for i in 1:k       # smaller image dots on top (same colour as their source)
-        p = Θ[a.tgtexp[i] + 1]
-        push!(ms, (; kind = :dot, pos = _floor_pos(p; lift = image_lift),
-                     color = cols[i], size = Float64(image_size)))
+    for i in 1:k                     # animated small image discs, tracking the caustic
+        P = _cap_point(Θ[a.srcexp[i] + 1])
+        c = cols[i]
+        # Replicate the template's clock motion on the cap point, then project it from
+        # the moving pole onto the floor (y=0): Fp is exactly this root's caustic point.
+        println(io, """
+        #declare MkAng = select(clock - 0.5, clock * 2 * Th, Th);
+        #declare Pm = vaxis_rotate(<$(P[1]), $(P[2]), $(P[3])> - SphC0, Vax, MkAng) + SphC0;
+        #declare Pm = Pm + Tv * select(clock - 0.5, 0, (clock - 0.5) * 2);
+        #declare Lm = -PoleNow.y / (Pm.y - PoleNow.y);
+        #declare Fp = PoleNow + Lm * (Pm - PoleNow);
+        cylinder { <Fp.x, $(image_h[1]), Fp.z>, <Fp.x, $(image_h[2]), Fp.z>, $(image_r)
+          pigment { color rgb <$(c[1]), $(c[2]), $(c[3])> } finish { ambient 1 diffuse 0 } no_shadow }""")
     end
-    return ms
+    return String(take!(io))
 end
 
 _select(accs::Vector{Accident}, which::Symbol) =
@@ -102,9 +123,10 @@ sphere rigid motion, and render the animation with `MobiusSphereVisual`.
 
 `which` selects the representative: `:maxk` (default — a maximum-overlap accident),
 an `Integer` index into `classify(d)`, or a `Vector{Int}` giving a canonical
-source-exponent set. `overlays=true` draws the root-of-unity dots and their
-ψ-images (`marker_kwargs` forwards styling to [`accident_markers`](@ref)). Extra
-`kwargs...` pass straight through to `render_mobius_animation` (e.g. `sampling`).
+source-exponent set. `overlays=true` draws the coloured source discs and their
+clock-animated ψ-image discs (`marker_kwargs` forwards styling to
+[`accident_overlay_sdl`](@ref)). Extra `kwargs...` pass straight through to
+`render_mobius_animation` (e.g. `sampling`).
 
 Returns the output `path` together with the chosen `accident` and its `motion`
 `(; v, θ, t, imag_error)`, so the numbers are available for inspection.
@@ -121,7 +143,7 @@ function render_accident(d::Integer;
     isempty(accs) && error("no accidents for d=$d")
     a = _select(accs, which)
     m = accident_to_rigid(a)
-    markers = overlays ? accident_markers(a; marker_kwargs...) : nothing
+    markers = overlays ? [(; kind = :raw, sdl = accident_overlay_sdl(a; marker_kwargs...))] : nothing
     path = render_mobius_animation(m.v, m.θ, m.t;
         output = String(output), fps = fps, nframes = nframes,
         resolution = resolution, quality = quality, keep_temp = keep_temp,

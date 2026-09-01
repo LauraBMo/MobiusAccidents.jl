@@ -46,22 +46,29 @@ using Test
         @test m.t ≈ [0.9756836610416143, -0.7088756736266997, -0.9213106741667365] atol=1e-8
     end
 
-    @testset "accident_markers: colored source→image pairs on overlapping roots" begin
-        a = classify(5)[1]                             # k = 4
-        ms = accident_markers(a)
-        @test length(ms) == 2 * a.k                    # a source + an image per overlap root
-        @test all(m -> m.kind === :dot, ms)
-        # every marker sits on the invariant circle of radius 1 (x² + z² = 1)
-        for m in ms
-            @test hypot(m.pos[1], m.pos[3]) ≈ 1.0 atol=1e-8
-            @test m.pos[2] > 0                          # lifted above the floor
+    @testset "_cap_point: inverse stereo lands the rest shadow on z" begin
+        # cap point rides on the unit sphere centred at <0,1,0>, on the lower cap,
+        # and its shadow from the rest pole <0,2,0> projects back to z.
+        for z in (cis(0.0), cis(1.3), cis(2.7), roots_of_unity(5)...)
+            P = MobiusSphereAccidentals._cap_point(z)
+            @test hypot(P[1], P[2] - 1, P[3]) ≈ 1.0 atol=1e-10   # on the sphere
+            @test P[2] < 1                                        # lower cap
+            λ = -2 / (P[2] - 2)                                   # project from <0,2,0> to y=0
+            @test λ * P[1] ≈ real(z) atol=1e-10
+            @test λ * P[3] ≈ imag(z) atol=1e-10
         end
-        sizes = unique(round.([m.size for m in ms]; digits=6))
-        @test length(sizes) == 2                        # one large (source), one small (image)
-        # each colour appears exactly twice: its large source dot and small image dot
-        cols = [m.color for m in ms]
-        @test all(c -> count(==(c), cols) == 2, unique(cols))
-        @test length(unique(cols)) == a.k               # k distinct colours
+    end
+
+    @testset "accident_overlay_sdl: k source discs + k animated image discs" begin
+        a = classify(5)[1]                              # k = 4
+        sdl = accident_overlay_sdl(a)
+        @test sdl isa AbstractString
+        @test count("cylinder {", sdl) == 2 * a.k        # a source + an image disc per root
+        @test count("vaxis_rotate", sdl) == a.k          # each image disc is clock-animated
+        @test occursin("PoleNow", sdl)                   # projected from the moving pole
+        @test occursin("select(clock", sdl)              # phase-aware clock motion
+        # wrong-length colour override is rejected
+        @test_throws ArgumentError accident_overlay_sdl(a; colors=[(1.0,0.0,0.0)])
     end
 
     @testset "_select forms agree" begin
