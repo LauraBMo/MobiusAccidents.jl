@@ -1,0 +1,11 @@
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+/Manifest.toml
+/docs/build/
+/docs/Manifest.toml
+.DS_Store
+
+# Renders write to /tmp, not the repo (except the committed showcase d5_accident.gif)
+/tmp/

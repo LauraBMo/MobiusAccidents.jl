@@ -1,0 +1,18 @@
+name = "MobiusSphereAccidentals"
+uuid = "1760e163-46f8-4ad1-854c-e23221889a1b"
+authors = ["LauBMo <laurea987@gmail.com> and contributors"]
+version = "0.1.0-DEV"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MobiusSphere = "3b32ec2d-4636-4452-8fb7-39185b5d309c"
+MobiusSphereVisual = "23a7d53f-6290-4ab9-a41c-6427287ae7da"
+
+[compat]
+julia = "1.9"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
