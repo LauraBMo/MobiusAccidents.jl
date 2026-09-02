@@ -37,10 +37,10 @@ end
 # through the caustic. For |z|=1 this is <0.8·Re z, 0.4, 0.8·Im z>.
 function _cap_point(z::Number)
     u, v = real(z), imag(z)
-    ρ2 = u * u + v * v
+    ρ2 = u*u + v*v
     return (4u / (ρ2 + 4), 1 + (ρ2 - 4) / (ρ2 + 4), 4v / (ρ2 + 4))
 end
-
+    
 _disc_sdl(x, ylo, yhi, r, c) = string(
     "cylinder { <", x[1], ", ", ylo, ", ", x[2], ">, <", x[1], ", ", yhi, ", ", x[2], ">, ", r,
     " pigment { color rgb <", c[1], ", ", c[2], ", ", c[3],
@@ -70,23 +70,19 @@ function accident_overlay_sdl(a::Accident;
         source_r::Real = 0.11, image_r::Real = 0.06,
         source_h = (0.008, 0.028), image_h = (0.032, 0.055),
         colors = nothing)
-    Θ = roots_of_unity(a.d)
+    d = a.d
     k = a.k
+    Θ = roots_of_unity(d)
     cols = colors === nothing ? [_hue_rgb((i - 1) / k) for i in 1:k] :
                                 [collect(Float64.(c)) for c in colors]
     length(cols) == k || throw(ArgumentError("colors must have length k=$k, got $(length(cols))"))
-    io = IOBuffer()
-    println(io, "// --- accident overlay: source discs (static) + image discs (clock-animated) ---")
-    for i in 1:k                     # static large source discs
-        r = Θ[a.srcexp[i] + 1]
-        println(io, _disc_sdl((real(r), imag(r)), source_h[1], source_h[2], source_r, cols[i]))
-    end
-    for i in 1:k                     # animated small image discs, tracking the caustic
-        P = _cap_point(Θ[a.srcexp[i] + 1])
-        c = cols[i]
-        # Replicate the template's clock motion on the cap point, then project it from
-        # the moving pole onto the floor (y=0): Fp is exactly this root's caustic point.
-        println(io, """
+    print_src(IO, r, c, rad = source_r) =
+        println(IO,
+                _disc_sdl((real(r), imag(r)), source_h[1], source_h[2], rad, c))
+    # Replicate the template's clock motion on the cap point, then project it from
+    # the moving pole onto the floor (y=0): Fp is exactly this root's caustic point.
+    print_image(IO, P, c) = 
+        println(IO, """
         #declare MkAng = select(clock - 0.5, clock * 2 * Th, Th);
         #declare Pm = vaxis_rotate(<$(P[1]), $(P[2]), $(P[3])> - SphC0, Vax, MkAng) + SphC0;
         #declare Pm = Pm + Tv * select(clock - 0.5, 0, (clock - 0.5) * 2);
@@ -94,7 +90,29 @@ function accident_overlay_sdl(a::Accident;
         #declare Fp = PoleNow + Lm * (Pm - PoleNow);
         cylinder { <Fp.x, $(image_h[1]), Fp.z>, <Fp.x, $(image_h[2]), Fp.z>, $(image_r)
           pigment { color rgb <$(c[1]), $(c[2]), $(c[3])> } finish { ambient 1 diffuse 0 } no_shadow }""")
+    io = IOBuffer()
+    println(io, "// --- accident overlay: source discs (static) + image discs (clock-animated) ---")
+    for i in 1:k                     
+        r = Θ[a.srcexp[i] + 1]
+        P = _cap_point(r)
+        c = cols[i]
+        # static large source disc
+        print_src(io, r, c)
+        # moving small image disc
+        print_image(io, P, c)
     end
+    for i in 0:(d-1)
+        if i ∉ a.srcexp
+            r = Θ[i + 1]
+            P = _cap_point(r)
+            # static source disc: light grey (not black, so it stays distinct from the
+            # black grid it may cross) and enlarged for visibility
+            print_src(io, r, [0.7,0.7,0.7], source_r * 1.6)
+            # moving small white image disc
+            print_image(io, P, [1.0,1.0,1.0])
+        end
+    end
+
     return String(take!(io))
 end
 

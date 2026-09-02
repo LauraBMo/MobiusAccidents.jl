@@ -59,15 +59,19 @@ using Test
         end
     end
 
-    @testset "accident_overlay_sdl: k source discs + k animated image discs" begin
-        a = classify(5)[1]                              # k = 4
+    @testset "accident_overlay_sdl: all d roots, source + animated image discs" begin
+        a = classify(5)[1]                              # k = 4, d = 5
         sdl = accident_overlay_sdl(a)
         @test sdl isa AbstractString
-        @test count("cylinder {", sdl) == 2 * a.k        # a source + an image disc per root
-        @test count("vaxis_rotate", sdl) == a.k          # each image disc is clock-animated
+        # every root gets a source + an image disc — all d of them (the k overlapping
+        # roots in distinct hues, the rest as black source / white image discs)
+        @test count("cylinder {", sdl) == 2 * a.d        # a source + an image disc per root
+        @test count("vaxis_rotate", sdl) == a.d          # each image disc is clock-animated
+        @test occursin("color rgb <0.7, 0.7, 0.7>", sdl) # non-overlapping source disc: grey
+        @test occursin("color rgb <1.0, 1.0, 1.0>", sdl) # non-overlapping image disc: white
         @test occursin("PoleNow", sdl)                   # projected from the moving pole
         @test occursin("select(clock", sdl)              # phase-aware clock motion
-        # wrong-length colour override is rejected
+        # wrong-length colour override (colours apply to the k overlapping roots) is rejected
         @test_throws ArgumentError accident_overlay_sdl(a; colors=[(1.0,0.0,0.0)])
     end
 
