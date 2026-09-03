@@ -25,9 +25,14 @@ _canonical(S, d) = minimum(_Dd_orbit(S, d))          # lexicographic orbit repre
 """
     QuasiDihedral
 
-One representative "accidental" (the paper's *sporadic semi-dihedral*) Möbius map
-of the `d`-th roots of unity: a `ψ ∈ PGL₂(ℂ)` with `|ψ(Θ_d) ∩ Θ_d| ≥ 4` but
-`ψ ∉ D_d`. Fields:
+One representative Möbius map of the `d`-th roots of unity carrying `k ≥ 4` of them
+back to roots of unity (preserving `|z| = 1` setwise). Two kinds live in this type:
+
+- a **quasi-dihedral** *accident* (the paper's *sporadic semi-dihedral*) when
+  `4 ≤ k < d` and `ψ ∉ D_d`;
+- a **genuine dihedral** symmetry when `k = d`, i.e. `ψ ∈ D_d` — see [`isdihedral`](@ref).
+
+Fields:
 
 - `d`      — order of the root system
 - `src`    — source **index** vector `[1, i+1, j+1]` into `Θ_d` defining `ψ` (1-based,
@@ -52,6 +57,16 @@ function Base.show(io::IO, a::QuasiDihedral)
 end
 
 """
+    isdihedral(a::QuasiDihedral) -> Bool
+
+`true` when `a` is a *genuine* dihedral symmetry rather than a quasi-dihedral
+accident: it carries **all** `d` roots of unity to roots (`k == d`, so `ψ ∈ D_d`
+and `srcexp == 0:d-1`). Accidents have `k < d`. `classify` sorts any dihedral
+representative last, so `filter(!isdihedral, classify(d))` recovers the accidents.
+"""
+isdihedral(a::QuasiDihedral) = a.k == a.d
+
+"""
     mobius_map(a::QuasiDihedral)
 
 The Möbius transformation `ψ` realizing the accident: it sends the source root
@@ -67,10 +82,12 @@ end
     classify(d; tol=1e-8) -> Vector{QuasiDihedral}
 
 Enumerate every Möbius sending a canonical triplet `(1, ω^i, ω^j)` to
-`(1, ω^ip, ω^jp)`, keep those whose overlap `|ψ(Θ_d) ∩ Θ_d|` is `≥ 4` and `< d`,
-and dedup by the `D_d`-orbit of the overlap's source-exponent set. The result is
-sorted by descending overlap `k`, then lexicographically by source set — so
-`classify(d)[1]` (equivalently `which = :max`) is a maximum-overlap accident.
+`(1, ω^ip, ω^jp)`, keep those whose overlap `|ψ(Θ_d) ∩ Θ_d|` is `≥ 4` (up to `d`),
+and dedup by the `D_d`-orbit of the overlap's source-exponent set. The accidents
+(`k < d`) come first, sorted by descending overlap `k` then lexicographically by
+source set — so `classify(d)[1]` (equivalently `which = :max`) is a maximum-overlap
+accident. Any genuine dihedral representative ([`isdihedral`](@ref), `k = d`) sorts
+last; the orbit-dedup collapses all of `D_d` to a single such representative.
 """
 function classify(d::Integer; tol = 1e-8)
     d = Int(d)
@@ -86,13 +103,13 @@ function classify(d::Integer; tol = 1e-8)
             push!(srcexp, e); push!(tgtexp, k - 1)
         end
         K = length(srcexp)
-        (4 <= K < d) || continue
+        (4 <= K <= d) || continue           # k = d is a genuine dihedral symmetry (ψ ∈ D_d)
         c = _canonical(srcexp, d)
         haskey(reps, c) ||
             (reps[c] = QuasiDihedral(d, [1, i+1, j+1], [1, ip+1, jp+1], sort(srcexp), tgtexp, K))
     end
     accs = collect(values(reps))
-    sort!(accs; by = a -> (-a.k, a.srcexp))
+    sort!(accs; by = a -> (isdihedral(a), -a.k, a.srcexp))   # accidents first, dihedral last
     return accs
 end
 
@@ -111,7 +128,7 @@ function accident_table(ds = 5:13; io::IO = stdout)
     println(io, "  d | #accidents(modD) | max k | expected | ok")
     println(io, "----+------------------+-------+----------+----")
     for d in ds
-        accs = classify(d)
+        accs = filter(!isdihedral, classify(d))     # census is the accidents (k < d) only
         cnt = length(accs)
         mk = isempty(accs) ? 0 : maximum(a.k for a in accs)
         e = get(EXPECTED, d, nothing)

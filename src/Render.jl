@@ -117,8 +117,8 @@ function accident_overlay_sdl(a::QuasiDihedral;
 end
 
 _select(accs::Vector{QuasiDihedral}, which::Symbol) =
-    which === :max ? argmax(a -> a.k, accs) :
-    error("unknown selector :$which (use :max, an Integer index, or a Vector{Int} set)")
+    which === :max ? argmax(a -> a.k, Iterators.filter(!isdihedral, accs)) :
+    error("unknown selector :$which (use :max or an Integer index)")
 
 _select(accs::Vector{QuasiDihedral}, i) = accs[i]
 

@@ -10,16 +10,31 @@ using Test
                         10=>(15,6), 11=>(20,4), 12=>(28,8), 13=>(35,4))
         for (d, (cnt, mk)) in sort(collect(expected))
             accs = classify(d)
-            @test length(accs) == cnt
-            @test maximum(a.k for a in accs) == mk
-            @test all(a -> 4 <= a.k < d, accs)      # accidents: ≥4 but not all
+            quasi = filter(!isdihedral, accs)             # the accidents (k < d)
+            @test length(quasi) == cnt
+            @test maximum(a.k for a in quasi) == mk
+            @test all(a -> 4 <= a.k < d, quasi)           # accidents: ≥4 but not all
+            @test count(isdihedral, accs) == 1            # plus one genuine D_d representative
         end
     end
 
-    @testset "classify is sorted with :max first" begin
+    @testset "dihedral case admitted (k = d, ψ ∈ D_d)" begin
+        for d in (5, 7, 12)
+            accs = classify(d)
+            dih = filter(isdihedral, accs)
+            @test length(dih) == 1                        # orbit-dedup ⇒ a single rep
+            @test dih[1].k == d == dih[1].d               # carries all d roots
+            @test dih[1].srcexp == collect(0:d-1)         # overlap is the whole root set
+            @test isdihedral(accs[end]) && !isdihedral(accs[1])  # sorted last, accidents first
+        end
+    end
+
+    @testset "classify: accidents first (:max), dihedral last" begin
         accs = classify(12)
-        @test accs[1].k == maximum(a.k for a in accs)   # max-overlap leads
-        @test issorted(accs; by = a -> (-a.k, a.srcexp))
+        @test !isdihedral(accs[1])                                   # an accident leads
+        @test accs[1].k == maximum(a.k for a in accs if !isdihedral(a))
+        @test isdihedral(accs[end])                                  # dihedral sorts last
+        @test issorted(accs; by = a -> (isdihedral(a), -a.k, a.srcexp))
     end
 
     @testset "mobius_map realizes the source→target triple" begin
@@ -78,7 +93,8 @@ using Test
     @testset "_select forms agree" begin
         accs = classify(8)
         a_max = MobiusSphereAccidentals._select(accs, :max)
-        @test a_max.k == maximum(a.k for a in accs)
+        @test !isdihedral(a_max)                                     # :max is an accident
+        @test a_max.k == maximum(a.k for a in accs if !isdihedral(a))
         @test MobiusSphereAccidentals._select(accs, 1) === accs[1]
     end
 end
