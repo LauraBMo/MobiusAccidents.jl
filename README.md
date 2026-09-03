@@ -41,17 +41,26 @@ using MobiusSphereAccidentals
 accident_table()                 # census vs the published counts (all ✓)
 
 accs = classify(5)               # Vector{QuasiDihedral}, max-overlap first
-m = accident_to_rigid(accs[1])   # (; v, θ, t, imag_error) sphere rigid motion
 
 # Render the d=5 maximum-overlap accident (root dots + ψ-image rings) to /tmp:
 res = render_accident(5; quality=:medium)
 res.path                         # the output GIF/MP4
-res.accident, res.motion         # what was rendered
+res.maps, res.motions            # what was rendered (vectors)
+
+# Render several at once, each a clip, concatenated into one video:
+render_accident(5; which=:all)                    # every accident (+ the dihedral rep)
+render_dihedral(5)                                # all 10 symmetries of D_5, in sequence
+render_dihedral(5; which=[2, 3])                  # just a couple
+
+# The raw rigid motion of any map (needs `using MobiusSphere`):
+using MobiusSphere
+Mobius_to_rot_angle_sitting(mobius_map(accs[1]))  # (; v, θ, t, imag_error)
 ```
 
-`render_accident(d; which, overlays, output, fps, nframes, resolution, quality, …)`
-selects the representative (`:max` or an index), toggles
-the overlays, and forwards the rest to `render_mobius_animation`.
+`render_accident(d; which, overlays, output, …)` and its sibling `render_dihedral(d; …)`
+select one or more maps — `which` is `:max`/`:all`/`:dihedral`, an index, a vector of
+indices, or explicit `QuasiDihedral`s — render each with the root overlays, and
+concatenate multiple clips into one video. The rest forwards to `render_mobius_animation`.
 
 ### Overlays
 

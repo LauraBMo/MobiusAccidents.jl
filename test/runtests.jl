@@ -1,4 +1,5 @@
 using MobiusSphereAccidentals
+using MobiusSphere            # Mobius_to_rot_angle_sitting
 using LinearAlgebra
 using Test
 
@@ -50,15 +51,27 @@ using Test
         @test hits == a.k
     end
 
-    @testset "accident_to_rigid: real motion + d=5 regression" begin
+    @testset "Mobius_to_rot_angle_sitting: real motion + d=5 regression" begin
         a = classify(5)[1]                 # THE d=5 accident (unique mod D_5)
-        m = accident_to_rigid(a)
+        m = Mobius_to_rot_angle_sitting(mobius_map(a))
         @test m.imag_error < 1e-8          # ψ gives a genuine real rigid motion
         @test norm(m.v) ≈ 1.0 atol=1e-10   # unit axis
         # Pinned values (verified 2026-09-01 against the standalone bridge):
         @test m.v ≈ [0.7499818036699579, 0.5448936755963917, 0.3749909018349791] atol=1e-8
         @test rad2deg(m.θ) ≈ 81.8161275081839 atol=1e-6
         @test m.t ≈ [0.9756836610416143, -0.7088756736266997, -0.9213106741667365] atol=1e-8
+    end
+
+    @testset "dihedral_maps enumerates D_d as renderable motions" begin
+        for d in (5, 6, 7)
+            dm = dihedral_maps(d)
+            @test length(dm) == 2d                          # |D_d| = 2d
+            @test all(isdihedral, dm)                       # every one has k = d
+            @test all(m -> m.srcexp == collect(0:d-1), dm)  # carries all roots
+            @test dm[1].tgtexp == collect(0:d-1)            # identity r⁰ is first
+            # a non-identity element realizes a genuine real sphere motion
+            @test Mobius_to_rot_angle_sitting(mobius_map(dm[2])).imag_error < 1e-8
+        end
     end
 
     @testset "_cap_point: inverse stereo lands the rest shadow on z" begin
@@ -90,12 +103,17 @@ using Test
         @test_throws ArgumentError accident_overlay_sdl(a; colors=[(1.0,0.0,0.0)])
     end
 
-    @testset "_select forms agree" begin
+    @testset "_select_maps forms" begin
         accs = classify(8)
-        a_max = MobiusSphereAccidentals._select(accs, :max)
+        S = MobiusSphereAccidentals._select_maps
+        a_max = only(S(accs, :max))
         @test !isdihedral(a_max)                                     # :max is an accident
         @test a_max.k == maximum(a.k for a in accs if !isdihedral(a))
-        @test MobiusSphereAccidentals._select(accs, 1) === accs[1]
+        @test S(accs, 1) == [accs[1]]                                # Integer index
+        @test S(accs, [1, 2]) == accs[1:2]                           # Vector of indices
+        @test S(accs, :all) === accs                                 # :all is the whole pool
+        @test all(isdihedral, S(accs, :dihedral))                    # :dihedral filters
+        @test S(accs, accs[1]) == [accs[1]]                          # explicit map
     end
 end
 
@@ -107,13 +125,25 @@ if success(`which povray`) && success(`which ffmpeg`)
                               resolution=(320,180), output=out)
         @test isfile(res.path)
         @test filesize(res.path) > 1000
-        @test res.accident.k == 4
-        @test res.motion.imag_error < 1e-8
+        @test length(res.maps) == 1
+        @test res.maps[1].k == 4
+        @test res.motions[1].imag_error < 1e-8
         rm(res.path; force=true)
         println("  ✓  render_accident(5) → $(res.path)")
     end
+
+    @testset "render_dihedral multi-render (two D_5 symmetries, concat)" begin
+        out = tempname() * ".gif"
+        res = render_dihedral(5; which=[2, 3], overlays=false, quality=:draft,
+                              nframes=2, fps=3, resolution=(160,90), output=out)
+        @test isfile(res.path)
+        @test filesize(res.path) > 1000
+        @test length(res.maps) == 2 && all(isdihedral, res.maps)   # two dihedral clips joined
+        rm(res.path; force=true)
+        println("  ✓  render_dihedral(5; which=[2,3]) → $(res.path)")
+    end
 else
-    @warn "Skipping render_accident end-to-end test — povray/ffmpeg not both in PATH"
+    @warn "Skipping render end-to-end tests — povray/ffmpeg not both in PATH"
 end
 
 println("\nAll done.")

@@ -113,6 +113,29 @@ function classify(d::Integer; tol = 1e-8)
     return accs
 end
 
+"""
+    dihedral_maps(d) -> Vector{QuasiDihedral}
+
+The `2d` elements of the dihedral group `D_d` as Möbius maps of the `d`-th roots of
+unity: rotations `z ↦ ω^k z` and reflections `z ↦ ω^k / z` (both holomorphic — on
+`|z| = 1`, `conj(z) = 1/z`, so a reflection is the Möbius `z ↦ ω^k/z`). Each is a
+`QuasiDihedral` with `k = d` ([`isdihedral`](@ref)) whose action on the exponents is the
+[`DihedralGroups`](https://github.com/LauraBMo/DihedralGroups) element's — ready for
+[`render_dihedral`](@ref). The identity `r⁰` is first, then rotations `r¹…r^{d-1}`, then
+the reflections. Unlike the single collapsed dihedral rep in `classify(d)`, these are the
+distinct symmetries, so they render as distinct sphere motions.
+"""
+function dihedral_maps(d::Integer)
+    d = Int(d)
+    maps = QuasiDihedral[]
+    for g in dihedralgroup(d)
+        img = [e^g for e in 0:d-1]                  # g's action on the exponents (0-based)
+        tgt = [img[1] + 1, img[2] + 1, img[3] + 1]  # images of exponents 0,1,2 as Θ indices
+        push!(maps, QuasiDihedral(d, [1, 2, 3], tgt, collect(0:d-1), img, d))
+    end
+    return maps
+end
+
 # ── Cross-check against the published table (count mod D_d, max overlap k) ──────────
 const EXPECTED = Dict(5=>(1,4), 6=>(2,4), 7=>(4,4), 8=>(7,6), 9=>(10,4),
                       10=>(15,6), 11=>(20,4), 12=>(28,8), 13=>(35,4))

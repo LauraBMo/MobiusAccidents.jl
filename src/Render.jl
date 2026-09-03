@@ -1,26 +1,13 @@
-# Render.jl — the bridge from an accident's Möbius map ψ to a sphere rigid motion,
-# the root-of-unity floor overlays, and the high-level `render_accident` entry point.
-
-"""
-    accident_to_rigid(a::QuasiDihedral) -> (; v, θ, t, imag_error)
-
-Convert the accident's Möbius map `ψ` to the rigid motion of the **sitting** sphere
-(rests on the floor, centre one radius up) that the render realizes: rotation axis
-`v` (unit, z-up MobiusSphere convention), angle `θ` (radians), translation `t`.
-
-Uses `MobiusSphere.Mobius_to_rigid_sitting` — NOT the origin-centred `Mobius_to_rigid`
-— because the scene's floor draws the unit circle at radius 1 (the centred variant's
-invariant circle sits at radius 2 and would deform the drawn circle). `imag_error`
-reports how far the recovered motion strayed from real (should be ~0 for an accident).
-"""
-function accident_to_rigid(a::QuasiDihedral)
-    ψ = mobius_map(a)
-    Q, T = Mobius_to_rigid_sitting(ψ)
-    imerr = max(maximum(abs, imag.(Q)), maximum(abs, imag.(collect(T))))
-    v, θ = rotation_axis_angle(real.(Q))
-    return (v = Float64.(real.(collect(v))), θ = Float64(real(θ)),
-            t = Float64.(real.(collect(T))), imag_error = imerr)
-end
+# Render.jl — the bridge from a QuasiDihedral's Möbius map ψ to a sphere rigid motion
+# (via MobiusSphere.Mobius_to_rot_angle_sitting), the root-of-unity floor overlays, and
+# the high-level `render_accident` / `render_dihedral` entry points.
+#
+# We use the **sitting** decomposition (sphere resting on the floor, centre one radius
+# up) — NOT the origin-centred one — because the scene's floor draws the unit circle at
+# radius 1; the centred variant's invariant circle sits at radius 2 and would deform it.
+# `Mobius_to_rot_angle_sitting` returns `(; v, θ, t, imag_error)`: axis (unit, z-up),
+# angle (radians), translation, and how far the recovered motion strayed from real (~0).
+_motion(a::QuasiDihedral) = Mobius_to_rot_angle_sitting(mobius_map(a))
 
 # Evenly-spaced fully-saturated hue → RGB (the standard sat=1, val=1 hue ramp).
 function _hue_rgb(h::Real)
@@ -116,55 +103,92 @@ function accident_overlay_sdl(a::QuasiDihedral;
     return String(take!(io))
 end
 
-_select(accs::Vector{QuasiDihedral}, which::Symbol) =
-    which === :max ? argmax(a -> a.k, Iterators.filter(!isdihedral, accs)) :
-    error("unknown selector :$which (use :max or an Integer index)")
+# Select a sub-list of maps to render, from a pool (`classify(d)` or `dihedral_maps(d)`).
+# Always returns a `Vector{QuasiDihedral}`; the render entry points render each and
+# concatenate. `which` may be a Symbol (:max — the maximum-overlap accident; :all;
+# :dihedral), an Integer index, a Vector of indices, a single QuasiDihedral, or a Vector.
+_select_maps(pool::Vector{QuasiDihedral}, which::Symbol) =
+    which === :all      ? pool :
+    which === :max      ? [argmax(a -> a.k, Iterators.filter(!isdihedral, pool))] :
+    which === :dihedral ? filter(isdihedral, pool) :
+    error("unknown selector :$which (use :max, :all, :dihedral, an Integer, or a vector)")
+_select_maps(pool::Vector{QuasiDihedral}, i::Integer) = [pool[i]]
+_select_maps(pool::Vector{QuasiDihedral}, I::AbstractVector{<:Integer}) = pool[I]
+_select_maps(::Vector{QuasiDihedral}, q::QuasiDihedral) = [q]
+_select_maps(::Vector{QuasiDihedral}, Q::AbstractVector{QuasiDihedral}) = collect(Q)
 
-_select(accs::Vector{QuasiDihedral}, i) = accs[i]
+# Render a list of maps: each to its own clip (with its own overlay), then concat in
+# order (see `concat_clips`). A single map renders straight to `output`. Per-map clips go
+# to `<stem>_parts/part_NN.<ext>` (kept only with `keep_temp`). Returns the output `path`,
+# the chosen `maps`, and their `motions` `(; v, θ, t, imag_error)`.
+function _render_maps(maps::Vector{QuasiDihedral};
+        overlays::Bool = true,
+        output::AbstractString = "/tmp/mobius.gif",
+        fps::Int = 20, nframes::Int = 60,
+        resolution::Tuple{Int,Int} = (640, 360),
+        quality::Symbol = :medium, keep_temp::Bool = false,
+        marker_kwargs = (;), kwargs...)
+    isempty(maps) && error("no maps to render")
+    motions = [_motion(a) for a in maps]
+    overlay(a) = overlays ? [(; kind = :raw, sdl = accident_overlay_sdl(a; marker_kwargs...))] : nothing
+    render1(a, m, out) = render_mobius_animation(m.v, m.θ, m.t;
+        output = out, fps = fps, nframes = nframes, resolution = resolution,
+        quality = quality, keep_temp = keep_temp, markers = overlay(a), kwargs...)
 
-# function _select(accs::Vector{QuasiDihedral}, I::AbstractVector{<:Integer})
-#     d = accs[1].d
-#     target = _canonical(collect(Int, set), d)
-#     i = findfirst(a -> _canonical(a.srcexp, a.d) == target, accs)
-#     i === nothing && error("no accident with canonical source set $(collect(set)) for d=$d")
-#     return accs[i]
-# end
+    if length(maps) == 1
+        path = render1(maps[1], motions[1], String(output))
+        return (; path, maps, motions)
+    end
+
+    stem, ext = splitext(String(output))
+    partdir = stem * "_parts"
+    mkpath(partdir)
+    parts = String[]
+    for (i, a) in enumerate(maps)
+        req = joinpath(partdir, "part_" * lpad(i, 2, '0') * ext)
+        push!(parts, render1(a, motions[i], req))   # actual path (may differ on format fallback)
+    end
+    # parts may have fallen back to another format (e.g. mp4→gif); match output to them.
+    path = concat_clips(parts, stem * splitext(parts[1])[2])
+    keep_temp || rm(partdir; recursive = true, force = true)
+    return (; path, maps, motions)
+end
 
 """
     render_accident(d; which=:max, overlays=true, output="/tmp/accident_d\$d.gif",
                     fps=20, nframes=60, resolution=(640,360), quality=:medium,
                     keep_temp=false, marker_kwargs=(;), kwargs...)
-        -> (; path, accident, motion)
+        -> (; path, maps, motions)
 
-Enumerate the accidents of the `d`-th roots of unity, pick one, convert it to a
-sphere rigid motion, and render the animation with `MobiusSphereVisual`.
+Enumerate the accidents of the `d`-th roots of unity ([`classify`](@ref)), pick one or
+several, convert each to a sitting-sphere rigid motion, and render with
+`MobiusSphereVisual`. `which` selects from `classify(d)`: `:max` (default — the
+maximum-overlap accident), `:all`, `:dihedral`, an `Integer` index, a `Vector{Int}` of
+indices, or explicit `QuasiDihedral`(s). A multi-map selection renders each to its own
+clip and concatenates them ([`concat_clips`](@ref)).
 
-`which` selects the representative: `:max` (default — a maximum-overlap accident) or
-an `Integer` index into `classify(d)`. `overlays=true` draws the coloured source discs and their
-clock-animated ψ-image discs (`marker_kwargs` forwards styling to
-[`accident_overlay_sdl`](@ref)). Extra `kwargs...` pass straight through to
-`render_mobius_animation` (e.g. `sampling`).
-
-Returns the output `path` together with the chosen `accident` and its `motion`
-`(; v, θ, t, imag_error)`, so the numbers are available for inspection.
+`overlays=true` draws the coloured root discs + their clock-animated ψ-image discs
+(`marker_kwargs` forwards styling to [`accident_overlay_sdl`](@ref)). Extra `kwargs...`
+pass through to `render_mobius_animation` (e.g. `sampling`, `hold`). Returns
+`(; path, maps, motions)`.
 """
-function render_accident(d::Integer;
-        which = :max,
-        overlays::Bool = true,
-        output::AbstractString = "/tmp/accident_d$(d).gif",
-        fps::Int = 20, nframes::Int = 60,
-        resolution::Tuple{Int,Int} = (640, 360),
-        quality::Symbol = :medium, keep_temp::Bool = false,
-        marker_kwargs = (;), kwargs...)
+function render_accident(d::Integer; which = :max,
+        output::AbstractString = "/tmp/accident_d$(d).gif", kwargs...)
     accs = classify(d)
     isempty(accs) && error("no accidents for d=$d")
-    a = _select(accs, which)
-    # if 'a' is a vector accs[[1,2,3]] : create files for 1,2 and 3 and concat them into output.
-    m = accident_to_rigid(a)
-    markers = overlays ? [(; kind = :raw, sdl = accident_overlay_sdl(a; marker_kwargs...))] : nothing
-    path = render_mobius_animation(m.v, m.θ, m.t;
-        output = String(output), fps = fps, nframes = nframes,
-        resolution = resolution, quality = quality, keep_temp = keep_temp,
-        markers = markers, kwargs...)
-    return (; path, accident = a, motion = m)
+    return _render_maps(_select_maps(accs, which); output = output, kwargs...)
 end
+
+"""
+    render_dihedral(d; which=:all, overlays=true, output="/tmp/dihedral_d\$d.gif", …)
+        -> (; path, maps, motions)
+
+Like [`render_accident`](@ref) but over the genuine dihedral symmetries
+[`dihedral_maps(d)`](@ref) — the `2d` elements of `D_d` (rotations `z ↦ ω^k z`,
+reflections `z ↦ ω^k/z`). `which` defaults to `:all` (every symmetry, concatenated;
+the identity `k=0` is first and renders static). Same overlays/kwargs as
+`render_accident`.
+"""
+render_dihedral(d::Integer; which = :all,
+        output::AbstractString = "/tmp/dihedral_d$(d).gif", kwargs...) =
+    _render_maps(_select_maps(dihedral_maps(d), which); output = output, kwargs...)

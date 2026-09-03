@@ -33,8 +33,8 @@ using MobiusSphere            # Möbius, Mobius_to_rigid_sitting, rotation_axis_
 using MobiusSphereVisual      # render_mobius_animation
 
 export QuasiDihedral, isdihedral,
-       roots_of_unity, classify, accident_table, mobius_map,
-       accident_to_rigid, accident_overlay_sdl, render_accident
+       roots_of_unity, classify, dihedral_maps, accident_table, mobius_map,
+       accident_overlay_sdl, render_accident, render_dihedral
 
 include("Classify.jl")
 include("Render.jl")
