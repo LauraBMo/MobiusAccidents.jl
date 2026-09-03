@@ -27,10 +27,10 @@ _canonical(S, d) = minimum(_Dd_orbit(S, d))          # lexicographic orbit repre
 
 ## TODO TODO Use julia indeces instead of exponents,
 ## Θsrc = Θ[a.src] this calls work out of the box.
-## TODO Accident renamed to QuasiDihedral; and it may also represent Dihedral symmetries,
-## when srcexp = Θ_d. We can plot them!
+## TODO A QuasiDihedral may also represent a genuine Dihedral symmetry, when
+## srcexp = Θ_d (k = d). Admit those too so we can plot them.
 """
-    Accident
+    QuasiDihedral
 
 One representative "accidental" (the paper's *sporadic semi-dihedral*) Möbius map
 of the `d`-th roots of unity: a `ψ ∈ PGL₂(ℂ)` with `|ψ(Θ_d) ∩ Θ_d| ≥ 4` but
@@ -44,7 +44,7 @@ of the `d`-th roots of unity: a `ψ ∈ PGL₂(ℂ)` with `|ψ(Θ_d) ∩ Θ_d| �
 - `tgtexp` — their images' exponents, aligned with `srcexp`
 - `k`      — overlap size `|ψ(Θ_d) ∩ Θ_d|` = `length(srcexp)`
 """
-struct Accident
+struct QuasiDihedral
     d::Int
     src::Vector{Int}
     tgt::Vector{Int}
@@ -53,25 +53,25 @@ struct Accident
     k::Int
 end
 
-function Base.show(io::IO, a::Accident)
-    print(io, "Accident(d=$(a.d), k=$(a.k), ",
+function Base.show(io::IO, a::QuasiDihedral)
+    print(io, "QuasiDihedral(d=$(a.d), k=$(a.k), ",
           "src=$(a.srcexp) → tgt=$(sort(a.tgtexp)))")
 end
 
 """
-    mobius_map(a::Accident)
+    mobius_map(a::QuasiDihedral)
 
 The Möbius transformation `ψ` realizing the accident: it sends the source root
 triple to the target root triple (and, being an accident, carries `k ≥ 4` of the
 d-th roots of unity to roots of unity while preserving `|z|=1` setwise).
 """
-function mobius_map(a::Accident)
+function mobius_map(a::QuasiDihedral)
     Θ = roots_of_unity(a.d)
     Möbius(Θ[a.src], Θ[a.tgt])          # a.src / a.tgt are 1-based indices into Θ
 end
 
 """
-    classify(d; tol=1e-8) -> Vector{Accident}
+    classify(d; tol=1e-8) -> Vector{QuasiDihedral}
 
 Enumerate every Möbius sending a canonical triplet `(1, ω^i, ω^j)` to
 `(1, ω^ip, ω^jp)`, keep those whose overlap `|ψ(Θ_d) ∩ Θ_d|` is `≥ 4` and `< d`,
@@ -83,7 +83,7 @@ function classify(d::Integer; tol = 1e-8)
     d = Int(d)
     Θ = roots_of_unity(d)
     onroot(w) = isfinite(w) ? findfirst(r -> abs(r - w) < tol, Θ) : nothing
-    reps = Dict{Vector{Int},Accident}()
+    reps = Dict{Vector{Int},QuasiDihedral}()
     for i in 1:d-1, j in i+1:d-1, ip in 1:d-1, jp in ip+1:d-1
         ψ = Möbius([Θ[1], Θ[i+1], Θ[j+1]], [Θ[1], Θ[ip+1], Θ[jp+1]])
         srcexp, tgtexp = Int[], Int[]
@@ -96,7 +96,7 @@ function classify(d::Integer; tol = 1e-8)
         (4 <= K < d) || continue
         c = _canonical(srcexp, d)
         haskey(reps, c) ||
-            (reps[c] = Accident(d, [1, i+1, j+1], [1, ip+1, jp+1], sort(srcexp), tgtexp, K))
+            (reps[c] = QuasiDihedral(d, [1, i+1, j+1], [1, ip+1, jp+1], sort(srcexp), tgtexp, K))
     end
     accs = collect(values(reps))
     sort!(accs; by = a -> (-a.k, a.srcexp))

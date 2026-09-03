@@ -40,7 +40,7 @@ using MobiusSphereAccidentals
 
 accident_table()                 # census vs the published counts (all ✓)
 
-accs = classify(5)               # Vector{Accident}, max-overlap first
+accs = classify(5)               # Vector{QuasiDihedral}, max-overlap first
 m = accident_to_rigid(accs[1])   # (; v, θ, t, imag_error) sphere rigid motion
 
 # Render the d=5 maximum-overlap accident (root dots + ψ-image rings) to /tmp:
@@ -50,7 +50,7 @@ res.accident, res.motion         # what was rendered
 ```
 
 `render_accident(d; which, overlays, output, fps, nframes, resolution, quality, …)`
-selects the representative (`:maxk`, an index, or a canonical exponent set), toggles
+selects the representative (`:max` or an index), toggles
 the overlays, and forwards the rest to `render_mobius_animation`.
 
 ### Overlays

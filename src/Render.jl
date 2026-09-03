@@ -2,7 +2,7 @@
 # the root-of-unity floor overlays, and the high-level `render_accident` entry point.
 
 """
-    accident_to_rigid(a::Accident) -> (; v, θ, t, imag_error)
+    accident_to_rigid(a::QuasiDihedral) -> (; v, θ, t, imag_error)
 
 Convert the accident's Möbius map `ψ` to the rigid motion of the **sitting** sphere
 (rests on the floor, centre one radius up) that the render realizes: rotation axis
@@ -13,7 +13,7 @@ Uses `MobiusSphere.Mobius_to_rigid_sitting` — NOT the origin-centred `Mobius_t
 invariant circle sits at radius 2 and would deform the drawn circle). `imag_error`
 reports how far the recovered motion strayed from real (should be ~0 for an accident).
 """
-function accident_to_rigid(a::Accident)
+function accident_to_rigid(a::QuasiDihedral)
     ψ = mobius_map(a)
     Q, T = Mobius_to_rigid_sitting(ψ)
     imerr = max(maximum(abs, imag.(Q)), maximum(abs, imag.(collect(T))))
@@ -47,7 +47,7 @@ _disc_sdl(x, ylo, yhi, r, c) = string(
     "> } finish { ambient 1 diffuse 0 } no_shadow }")
 
 """
-    accident_overlay_sdl(a::Accident; source_r, image_r, source_h, image_h, colors)
+    accident_overlay_sdl(a::QuasiDihedral; source_r, image_r, source_h, image_h, colors)
         -> String
 
 POV-Ray SDL (for a `:raw` marker) drawing the **action of ψ on the overlapping
@@ -66,7 +66,7 @@ cylinders) so a smaller disc stays visible on top of a larger one. `source_h`/`i
 are `(low, high)` disc heights (image sits above source); default colours are
 evenly-spaced hues (override with `colors`, a length-`k` vector of RGB triples).
 """
-function accident_overlay_sdl(a::Accident;
+function accident_overlay_sdl(a::QuasiDihedral;
         source_r::Real = 0.11, image_r::Real = 0.06,
         source_h = (0.008, 0.028), image_h = (0.032, 0.055),
         colors = nothing)
@@ -116,13 +116,13 @@ function accident_overlay_sdl(a::Accident;
     return String(take!(io))
 end
 
-_select(accs::Vector{Accident}, which::Symbol) =
+_select(accs::Vector{QuasiDihedral}, which::Symbol) =
     which === :max ? argmax(a -> a.k, accs) :
     error("unknown selector :$which (use :max, an Integer index, or a Vector{Int} set)")
 
-_select(accs::Vector{Accident}, i) = accs[i]
+_select(accs::Vector{QuasiDihedral}, i) = accs[i]
 
-# function _select(accs::Vector{Accident}, I::AbstractVector{<:Integer})
+# function _select(accs::Vector{QuasiDihedral}, I::AbstractVector{<:Integer})
 #     d = accs[1].d
 #     target = _canonical(collect(Int, set), d)
 #     i = findfirst(a -> _canonical(a.srcexp, a.d) == target, accs)

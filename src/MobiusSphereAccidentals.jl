@@ -31,7 +31,7 @@ using LinearAlgebra
 using MobiusSphere            # Möbius, Mobius_to_rigid_sitting, rotation_axis_angle
 using MobiusSphereVisual      # render_mobius_animation
 
-export Accident,
+export QuasiDihedral,
        roots_of_unity, classify, accident_table, mobius_map,
        accident_to_rigid, accident_overlay_sdl, render_accident
 
