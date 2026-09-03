@@ -28,6 +28,7 @@ render_accident(5)               # render the d=5 max-overlap accident to /tmp
 module MobiusSphereAccidentals
 
 using LinearAlgebra
+using DihedralGroups          # dihedralgroup, the group action i^g on exponents
 using MobiusSphere            # Möbius, Mobius_to_rigid_sitting, rotation_axis_angle
 using MobiusSphereVisual      # render_mobius_animation
 

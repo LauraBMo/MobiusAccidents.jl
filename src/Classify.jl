@@ -10,18 +10,11 @@ The d-th roots of unity `Θ_d = {exp(2πik/d) : k = 0,…,d-1}`.
 """
 roots_of_unity(d::Integer) = [cispi(2 * k / d) for k in 0:d-1]
 
-## TODO Use my package DihedralGroups.jl, add it to the MobiusSuite and register it.
-# Dihedral group D_d acting on exponent sets S ⊆ ℤ/dℤ: rotations k↦k+1, reflection k↦−k.
-function _Dd_orbit(S::Vector{Int}, d::Int)
-    orb = Vector{Int}[]
-    T = sort(mod.(S, d))
-    for _ in 1:d
-        push!(orb, T)
-        push!(orb, sort(mod.(-T, d)))
-        T = sort(mod.(T .+ 1, d))
-    end
-    return orb
-end
+# Dihedral group D_d acting on exponent sets S ⊆ ℤ/dℤ, via DihedralGroups.jl. The
+# group action `i^g` sends an exponent i by a rotation (i↦i+k) or a reflection
+# (i↦k−i), both mod d; the orbit of S is its image under all 2d elements of D_d.
+_Dd_orbit(S::Vector{Int}, d::Int) =
+    [sort([i^g for i in S]) for g in dihedralgroup(d)]
 
 _canonical(S, d) = minimum(_Dd_orbit(S, d))          # lexicographic orbit representative
 
