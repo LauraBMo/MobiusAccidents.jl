@@ -16,7 +16,7 @@ using Test
         end
     end
 
-    @testset "classify is sorted with :maxk first" begin
+    @testset "classify is sorted with :max first" begin
         accs = classify(12)
         @test accs[1].k == maximum(a.k for a in accs)   # max-overlap leads
         @test issorted(accs; by = a -> (-a.k, a.srcexp))
@@ -28,7 +28,7 @@ using Test
         Θ = roots_of_unity(5)
         # ψ sends ω^src → ω^tgt for the defining triple
         for (s, t) in zip(a.src, a.tgt)
-            @test ψ(Θ[s+1]) ≈ Θ[t+1] atol=1e-8
+            @test ψ(Θ[s]) ≈ Θ[t] atol=1e-8       # a.src/a.tgt are 1-based indices into Θ
         end
         # and carries exactly `k` roots to roots
         hits = count(e -> any(r -> abs(ψ(Θ[e+1]) - r) < 1e-8, Θ), 0:4)
@@ -77,12 +77,9 @@ using Test
 
     @testset "_select forms agree" begin
         accs = classify(8)
-        a_max = MobiusSphereAccidentals._select(accs, :maxk)
+        a_max = MobiusSphereAccidentals._select(accs, :max)
         @test a_max.k == maximum(a.k for a in accs)
         @test MobiusSphereAccidentals._select(accs, 1) === accs[1]
-        # canonical-set selector round-trips
-        a1 = accs[1]
-        @test MobiusSphereAccidentals._select(accs, a1.srcexp).srcexp == a1.srcexp
     end
 end
 

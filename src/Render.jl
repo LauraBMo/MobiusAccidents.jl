@@ -117,21 +117,21 @@ function accident_overlay_sdl(a::Accident;
 end
 
 _select(accs::Vector{Accident}, which::Symbol) =
-    which === :maxk ? argmax(a -> a.k, accs) :
-    error("unknown selector :$which (use :maxk, an Integer index, or a Vector{Int} set)")
+    which === :max ? argmax(a -> a.k, accs) :
+    error("unknown selector :$which (use :max, an Integer index, or a Vector{Int} set)")
 
-_select(accs::Vector{Accident}, i::Integer) = accs[i]
+_select(accs::Vector{Accident}, i) = accs[i]
 
-function _select(accs::Vector{Accident}, set::AbstractVector{<:Integer})
-    d = accs[1].d
-    target = _canonical(collect(Int, set), d)
-    i = findfirst(a -> _canonical(a.srcexp, a.d) == target, accs)
-    i === nothing && error("no accident with canonical source set $(collect(set)) for d=$d")
-    return accs[i]
-end
+# function _select(accs::Vector{Accident}, I::AbstractVector{<:Integer})
+#     d = accs[1].d
+#     target = _canonical(collect(Int, set), d)
+#     i = findfirst(a -> _canonical(a.srcexp, a.d) == target, accs)
+#     i === nothing && error("no accident with canonical source set $(collect(set)) for d=$d")
+#     return accs[i]
+# end
 
 """
-    render_accident(d; which=:maxk, overlays=true, output="/tmp/accident_d\$d.gif",
+    render_accident(d; which=:max, overlays=true, output="/tmp/accident_d\$d.gif",
                     fps=20, nframes=60, resolution=(640,360), quality=:medium,
                     keep_temp=false, marker_kwargs=(;), kwargs...)
         -> (; path, accident, motion)
@@ -139,9 +139,8 @@ end
 Enumerate the accidents of the `d`-th roots of unity, pick one, convert it to a
 sphere rigid motion, and render the animation with `MobiusSphereVisual`.
 
-`which` selects the representative: `:maxk` (default — a maximum-overlap accident),
-an `Integer` index into `classify(d)`, or a `Vector{Int}` giving a canonical
-source-exponent set. `overlays=true` draws the coloured source discs and their
+`which` selects the representative: `:max` (default — a maximum-overlap accident) or
+an `Integer` index into `classify(d)`. `overlays=true` draws the coloured source discs and their
 clock-animated ψ-image discs (`marker_kwargs` forwards styling to
 [`accident_overlay_sdl`](@ref)). Extra `kwargs...` pass straight through to
 `render_mobius_animation` (e.g. `sampling`).
@@ -150,7 +149,7 @@ Returns the output `path` together with the chosen `accident` and its `motion`
 `(; v, θ, t, imag_error)`, so the numbers are available for inspection.
 """
 function render_accident(d::Integer;
-        which = :maxk,
+        which = :max,
         overlays::Bool = true,
         output::AbstractString = "/tmp/accident_d$(d).gif",
         fps::Int = 20, nframes::Int = 60,
@@ -160,6 +159,7 @@ function render_accident(d::Integer;
     accs = classify(d)
     isempty(accs) && error("no accidents for d=$d")
     a = _select(accs, which)
+    # if 'a' is a vector accs[[1,2,3]] : create files for 1,2 and 3 and concat them into output.
     m = accident_to_rigid(a)
     markers = overlays ? [(; kind = :raw, sdl = accident_overlay_sdl(a; marker_kwargs...))] : nothing
     path = render_mobius_animation(m.v, m.θ, m.t;

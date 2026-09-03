@@ -10,6 +10,7 @@ The d-th roots of unity `Θ_d = {exp(2πik/d) : k = 0,…,d-1}`.
 """
 roots_of_unity(d::Integer) = [cispi(2 * k / d) for k in 0:d-1]
 
+## TODO Use my package DihedralGroups.jl, add it to the MobiusSuite and register it.
 # Dihedral group D_d acting on exponent sets S ⊆ ℤ/dℤ: rotations k↦k+1, reflection k↦−k.
 function _Dd_orbit(S::Vector{Int}, d::Int)
     orb = Vector{Int}[]
@@ -24,6 +25,10 @@ end
 
 _canonical(S, d) = minimum(_Dd_orbit(S, d))          # lexicographic orbit representative
 
+## TODO TODO Use julia indeces instead of exponents,
+## Θsrc = Θ[a.src] this calls work out of the box.
+## TODO Accident renamed to QuasiDihedral; and it may also represent Dihedral symmetries,
+## when srcexp = Θ_d. We can plot them!
 """
     Accident
 
@@ -32,16 +37,17 @@ of the `d`-th roots of unity: a `ψ ∈ PGL₂(ℂ)` with `|ψ(Θ_d) ∩ Θ_d| �
 `ψ ∉ D_d`. Fields:
 
 - `d`      — order of the root system
-- `src`    — source exponent triple `(0, i, j)` defining `ψ` (via three-point map)
-- `tgt`    — target exponent triple `(0, ip, jp)`
+- `src`    — source **index** vector `[1, i+1, j+1]` into `Θ_d` defining `ψ` (1-based,
+             so `Θ[a.src]` returns the defining source roots directly)
+- `tgt`    — target index vector `[1, ip+1, jp+1]` into `Θ_d`, aligned with `src`
 - `srcexp` — all source exponents `e` with `ψ(ω^e) ∈ Θ_d` (the overlap, sorted)
 - `tgtexp` — their images' exponents, aligned with `srcexp`
 - `k`      — overlap size `|ψ(Θ_d) ∩ Θ_d|` = `length(srcexp)`
 """
 struct Accident
     d::Int
-    src::NTuple{3,Int}
-    tgt::NTuple{3,Int}
+    src::Vector{Int}
+    tgt::Vector{Int}
     srcexp::Vector{Int}
     tgtexp::Vector{Int}
     k::Int
@@ -61,8 +67,7 @@ d-th roots of unity to roots of unity while preserving `|z|=1` setwise).
 """
 function mobius_map(a::Accident)
     Θ = roots_of_unity(a.d)
-    Möbius([Θ[1], Θ[a.src[2]+1], Θ[a.src[3]+1]],
-           [Θ[1], Θ[a.tgt[2]+1], Θ[a.tgt[3]+1]])
+    Möbius(Θ[a.src], Θ[a.tgt])          # a.src / a.tgt are 1-based indices into Θ
 end
 
 """
@@ -72,7 +77,7 @@ Enumerate every Möbius sending a canonical triplet `(1, ω^i, ω^j)` to
 `(1, ω^ip, ω^jp)`, keep those whose overlap `|ψ(Θ_d) ∩ Θ_d|` is `≥ 4` and `< d`,
 and dedup by the `D_d`-orbit of the overlap's source-exponent set. The result is
 sorted by descending overlap `k`, then lexicographically by source set — so
-`classify(d)[1]` (equivalently `which = :maxk`) is a maximum-overlap accident.
+`classify(d)[1]` (equivalently `which = :max`) is a maximum-overlap accident.
 """
 function classify(d::Integer; tol = 1e-8)
     d = Int(d)
@@ -91,7 +96,7 @@ function classify(d::Integer; tol = 1e-8)
         (4 <= K < d) || continue
         c = _canonical(srcexp, d)
         haskey(reps, c) ||
-            (reps[c] = Accident(d, (0, i, j), (0, ip, jp), sort(srcexp), tgtexp, K))
+            (reps[c] = Accident(d, [1, i+1, j+1], [1, ip+1, jp+1], sort(srcexp), tgtexp, K))
     end
     accs = collect(values(reps))
     sort!(accs; by = a -> (-a.k, a.srcexp))
