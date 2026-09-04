@@ -1,7 +1,7 @@
 name = "MobiusSphereAccidentals"
 uuid = "1760e163-46f8-4ad1-854c-e23221889a1b"
 authors = ["LauBMo <laurea987@gmail.com> and contributors"]
-version = "0.1.0-DEV"
+version = "0.1.0"
 
 [deps]
 DihedralGroups = "389a4bbc-39bf-4ad8-8e5b-dcae9cd81e5a"
@@ -10,6 +10,9 @@ MobiusSphere = "3b32ec2d-4636-4452-8fb7-39185b5d309c"
 MobiusSphereVisual = "23a7d53f-6290-4ab9-a41c-6427287ae7da"
 
 [compat]
+DihedralGroups = "0.1"
+MobiusSphere = "0.1"
+MobiusSphereVisual = "0.1"
 julia = "1.9"
 
 [extras]
