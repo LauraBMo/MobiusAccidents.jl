@@ -9,13 +9,12 @@ MobiusSphere = "3b32ec2d-4636-4452-8fb7-39185b5d309c"
 MobiusSpherePlots = "23a7d53f-6290-4ab9-a41c-6427287ae7da"
 RootsOfUnityTriplets = "f40d4bfb-2d31-4d58-b447-897b0a1988af"
 
-# Path sources for local development. These become `url = "https://github.com/..."`
-# once the fixes in MobiusSphere and MobiusSpherePlots are committed and pushed —
-# a url source would otherwise clone the stale, un-loadable revisions.
+# All three are unregistered, so they are resolved from GitHub. For local work on a
+# dependency, override with `Pkg.develop(path = "...")`.
 [sources]
-MobiusSphere = {path = "/home/laury/.julia/dev/MobiusSphere.jl"}
-MobiusSpherePlots = {path = "/home/laury/.julia/dev/MobiusSpherePlots.jl"}
-RootsOfUnityTriplets = {path = "/home/laury/.julia/dev/RootsOfUnityTriplets.jl"}
+MobiusSphere = {url = "https://github.com/LauraBMo/MobiusSphere.jl"}
+MobiusSpherePlots = {url = "https://github.com/LauraBMo/MobiusSpherePlots.jl"}
+RootsOfUnityTriplets = {url = "https://github.com/LauraBMo/RootsOfUnityTriplets.jl"}
 
 [compat]
 RootsOfUnityTriplets = "0.1"
