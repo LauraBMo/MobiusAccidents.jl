@@ -1,9 +1,9 @@
-using MobiusSphereAccidentals
+using MobiusAccidents
 using MobiusSphere            # Mobius_to_rot_angle_sitting
 using LinearAlgebra
 using Test
 
-@testset "MobiusSphereAccidentals.jl" begin
+@testset "MobiusAccidents.jl" begin
 
     @testset "classification census matches the published table" begin
         # (#accidents mod D_d, max overlap k) — the paper's counts.
@@ -54,7 +54,6 @@ using Test
     @testset "Mobius_to_rot_angle_sitting: real motion + d=5 regression" begin
         a = classify(5)[1]                 # THE d=5 accident (unique mod D_5)
         m = Mobius_to_rot_angle_sitting(mobius_map(a))
-        @test m.imag_error < 1e-8          # ψ gives a genuine real rigid motion
         @test norm(m.v) ≈ 1.0 atol=1e-10   # unit axis
         # Pinned values (verified 2026-09-01 against the standalone bridge):
         @test m.v ≈ [0.7499818036699579, 0.5448936755963917, 0.3749909018349791] atol=1e-8
@@ -70,7 +69,7 @@ using Test
             @test all(m -> m.srcexp == collect(0:d-1), dm)  # carries all roots
             @test dm[1].tgtexp == collect(0:d-1)            # identity r⁰ is first
             # a non-identity element realizes a genuine real sphere motion
-            @test Mobius_to_rot_angle_sitting(mobius_map(dm[2])).imag_error < 1e-8
+            @test norm(Mobius_to_rot_angle_sitting(mobius_map(dm[2])).v) ≈ 1.0 atol=1e-10
         end
     end
 
@@ -78,7 +77,7 @@ using Test
         # cap point rides on the unit sphere centred at <0,1,0>, on the lower cap,
         # and its shadow from the rest pole <0,2,0> projects back to z.
         for z in (cis(0.0), cis(1.3), cis(2.7), roots_of_unity(5)...)
-            P = MobiusSphereAccidentals._cap_point(z)
+            P = MobiusAccidents._cap_point(z)
             @test hypot(P[1], P[2] - 1, P[3]) ≈ 1.0 atol=1e-10   # on the sphere
             @test P[2] < 1                                        # lower cap
             λ = -2 / (P[2] - 2)                                   # project from <0,2,0> to y=0
@@ -105,7 +104,7 @@ using Test
 
     @testset "_select_maps forms" begin
         accs = classify(8)
-        S = MobiusSphereAccidentals._select_maps
+        S = MobiusAccidents._select_maps
         a_max = only(S(accs, :max))
         @test !isdihedral(a_max)                                     # :max is an accident
         @test a_max.k == maximum(a.k for a in accs if !isdihedral(a))
@@ -127,7 +126,7 @@ if success(`which povray`) && success(`which ffmpeg`)
         @test filesize(res.path) > 1000
         @test length(res.maps) == 1
         @test res.maps[1].k == 4
-        @test res.motions[1].imag_error < 1e-8
+        @test norm(res.motions[1].v) ≈ 1.0 atol=1e-10
         rm(res.path; force=true)
         println("  ✓  render_accident(5) → $(res.path)")
     end

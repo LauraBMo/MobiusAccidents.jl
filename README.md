@@ -1,4 +1,4 @@
-# MobiusSphereAccidentals
+# MobiusAccidents
 
 Enumerate, classify, and render the **accidental** Möbius transformations of the
 d-th roots of unity — the *sporadic semi-dihedral* maps of Siliciano/Rank2Forms.
@@ -14,8 +14,8 @@ It is the accident-specific layer on top of two generic siblings:
 | Package | Role |
 |---|---|
 | [`MobiusSphere`](https://github.com/LauraBMo/MobiusSphere) | maths: PGL₂, stereographic projection, `Mobius_to_rigid_sitting` |
-| [`MobiusSphereVisual`](https://github.com/LauraBMo/MobiusSphereVisual) | generic POV-Ray render of any sphere motion `(v, θ, t)` |
-| **`MobiusSphereAccidentals`** | **enumerate accidents · bridge each to a rigid motion · overlay roots + images** |
+| [`MobiusSpherePlots`](https://github.com/LauraBMo/MobiusSpherePlots) | generic POV-Ray render of any sphere motion `(v, θ, t)` |
+| **`MobiusAccidents`** | **enumerate accidents · bridge each to a rigid motion · overlay roots + images** |
 
 It changes nothing about *how* a sphere is rendered — it feeds the generic renderer
 the right motion and the root-of-unity floor overlays. Core fixes to the render
@@ -27,16 +27,16 @@ Developed alongside the siblings in the shared `@MobiusSuite` environment:
 
 ```julia
 using Pkg
-Pkg.develop(path="~/.julia/dev/MobiusSphereAccidentals")
+Pkg.develop(path="~/.julia/dev/MobiusAccidents")
 ```
 
 Needs `povray` (≥ 3.7) and `ffmpeg` on `PATH` to render (inherited from
-`MobiusSphereVisual`); classification and the bridge need neither.
+`MobiusSpherePlots`); classification and the bridge need neither.
 
 ## Usage
 
 ```julia
-using MobiusSphereAccidentals
+using MobiusAccidents
 
 accident_table()                 # census vs the published counts (all ✓)
 

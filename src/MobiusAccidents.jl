@@ -1,5 +1,5 @@
 """
-    MobiusSphereAccidentals
+    MobiusAccidents
 
 Enumerate, classify, and render the **accidental** Möbius transformations of the
 d-th roots of unity — the paper's *sporadic semi-dihedral* maps: `ψ ∈ PGL₂(ℂ)`
@@ -11,7 +11,7 @@ This is the accident-specific layer on top of the generic siblings:
 
 - [`MobiusSphere`](https://github.com/LauraBMo/MobiusSphere) — the maths (PGL₂,
   stereographic projection, `Mobius_to_rigid_sitting`);
-- [`MobiusSphereVisual`](https://github.com/LauraBMo/MobiusSphereVisual) — the
+- [`MobiusSpherePlots`](https://github.com/LauraBMo/MobiusSpherePlots) — the
   generic POV-Ray render of any `(v, θ, t)` sphere motion.
 
 It adds nothing to how a sphere is rendered; it enumerates accidents, bridges each
@@ -20,17 +20,17 @@ roots of unity and their images.
 
 # Quick start
 ```julia
-using MobiusSphereAccidentals
+using MobiusAccidents
 accident_table()                 # census vs the published counts
 render_accident(5)               # render the d=5 max-overlap accident to /tmp
 ```
 """
-module MobiusSphereAccidentals
+module MobiusAccidents
 
 using LinearAlgebra
-using DihedralGroups          # dihedralgroup, the group action i^g on exponents
+using RootsOfUnityTriplets    # dihedralgroup, the group action i^g on exponents
 using MobiusSphere            # Möbius, Mobius_to_rigid_sitting, rotation_axis_angle
-using MobiusSphereVisual      # render_mobius_animation
+using MobiusSpherePlots      # render_mobius_animation
 
 export QuasiDihedral, isdihedral,
        roots_of_unity, classify, dihedral_maps, accident_table, mobius_map,
