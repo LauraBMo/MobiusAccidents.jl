@@ -5,8 +5,9 @@
 # We use the **sitting** decomposition (sphere resting on the floor, centre one radius
 # up) — NOT the origin-centred one — because the scene's floor draws the unit circle at
 # radius 1; the centred variant's invariant circle sits at radius 2 and would deform it.
-# `Mobius_to_rot_angle_sitting` returns `(; v, θ, t, imag_error)`: axis (unit, z-up),
-# angle (radians), translation, and how far the recovered motion strayed from real (~0).
+# `Mobius_to_rot_angle_sitting` returns `(; v, θ, t)`: axis (unit, z-up), angle (radians),
+# translation. There is no `imag_error` term — every Möbius map is realized by a genuine
+# real rigid motion, so the deviation from real is identically zero and carries no signal.
 _motion(a::QuasiDihedral) = Mobius_to_rot_angle_sitting(mobius_map(a))
 
 # Evenly-spaced fully-saturated hue → RGB (the standard sat=1, val=1 hue ramp).
@@ -120,7 +121,7 @@ _select_maps(::Vector{QuasiDihedral}, Q::AbstractVector{QuasiDihedral}) = collec
 # Render a list of maps: each to its own clip (with its own overlay), then concat in
 # order (see `concat_clips`). A single map renders straight to `output`. Per-map clips go
 # to `<stem>_parts/part_NN.<ext>` (kept only with `keep_temp`). Returns the output `path`,
-# the chosen `maps`, and their `motions` `(; v, θ, t, imag_error)`.
+# the chosen `maps`, and their `motions` `(; v, θ, t)`.
 function _render_maps(maps::Vector{QuasiDihedral};
         overlays::Bool = true,
         output::AbstractString = "/tmp/mobius.gif",
@@ -162,7 +163,7 @@ end
 
 Enumerate the accidents of the `d`-th roots of unity ([`classify`](@ref)), pick one or
 several, convert each to a sitting-sphere rigid motion, and render with
-`MobiusSphereVisual`. `which` selects from `classify(d)`: `:max` (default — the
+`MobiusSpherePlots`. `which` selects from `classify(d)`: `:max` (default — the
 maximum-overlap accident), `:all`, `:dihedral`, an `Integer` index, a `Vector{Int}` of
 indices, or explicit `QuasiDihedral`(s). A multi-map selection renders each to its own
 clip and concatenates them ([`concat_clips`](@ref)).
